@@ -17,70 +17,68 @@ With these changes, your job will be scheduled only on GPU-enabled nodes, and th
 
 ## Custom Node Selector and Tolerations
 
-In addition to automatic GPU configuration, you can specify custom node selectors and tolerations via profile settings. This is useful when you need to target specific nodes or handle custom taints in your cluster.
+The plugin supports custom node selectors and tolerations via profile settings or command-line arguments. This allows targeting specific nodes and handling custom taints beyond the automatic GPU configuration.
 
-### Configuration Format
+### Configuration
 
-**Node Selector:**
-- Format: `key1=value1,key2=value2`
-- Example: `nvidia.com/gpu.present=true,nvidia.com/gpu.machine=A100`
+**Node Selector Format:** `key1=value1,key2=value2`
 
-**Tolerations:**
-- Format: `key1=value1:effect1,key2=value2:effect2`
-- Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
-- Example: `nvidia.com/gpu=true:NoSchedule,dedicated=snakemake:NoExecute`
+Example:
+```yaml
+kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.machine=A100
+```
 
-### Usage Examples
+**Tolerations Format:** `key1=value1:effect1,key2=value2:effect2`
 
-**Via Profile YAML:**
+Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
+
+Example:
+```yaml
+kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
+```
+
+### Example: NVIDIA GPU Cluster
+
 ```yaml
 executor: kubernetes
 kubernetes-node-selector: nvidia.com/gpu.present=true
 kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
 ```
 
-**Via Command Line:**
-```bash
-snakemake --executor kubernetes \
-  --kubernetes-node-selector "nvidia.com/gpu.present=true" \
-  --kubernetes-tolerations "nvidia.com/gpu=true:NoSchedule"
-```
+### Example: AMD GPU Cluster
 
-### Use Cases
-
-**Cluster with NVIDIA GPUs:**
 ```yaml
-kubernetes-node-selector: nvidia.com/gpu.present=true
-kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
-```
-
-**Cluster with AMD GPUs:**
-```yaml
+executor: kubernetes
 kubernetes-node-selector: amd.com/gpu.present=true
 kubernetes-tolerations: amd.com/gpu=true:NoSchedule
 ```
 
-**Cluster with Multiple GPU Types:**
+### Example: Multiple GPU Types
+
 ```yaml
+executor: kubernetes
 kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.product=A100
 kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
 ```
 
-**Cluster with Custom Taints:**
+### Example: Custom Taints
+
 ```yaml
+executor: kubernetes
 kubernetes-node-selector: nvidia.com/gpu.present=true
 kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule,nvidia.com/gpu=true:NoExecute
 ```
 
-### Compatibility
+### Notes
 
-- Custom node selectors and tolerations are **additive** to automatic GPU configurations
-- If not specified, behavior is identical to the original plugin
+- Custom configurations are **additive** to automatic GPU settings
+- If not specified, the plugin behaves identically to the original version
 - Automatic GPU tolerations (via `gpu_manufacturer`) continue to work alongside custom settings
 
 ### Verification
 
 To verify applied configurations:
+
 ```bash
 kubectl get job <job-name> -n <namespace> -o json | \
   jq '.spec.template.spec.nodeSelector, .spec.template.spec.tolerations'
