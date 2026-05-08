@@ -117,6 +117,13 @@ class ExecutorSettings(ExecutorSettingsBase):
             "E.g., nvidia.com/gpu=true:NoSchedule"
         },
     )
+    image_pull_policy: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Image pull policy: Always, IfNotPresent, or Never. "
+            "Default is IfNotPresent."
+        },
+    )
 
 
 # Required:
@@ -168,6 +175,7 @@ class Executor(RemoteExecutor):
         self.persistent_volumes = self.workflow.executor_settings.persistent_volumes
         self.k8s_node_selector = self.workflow.executor_settings.node_selector
         self.k8s_tolerations = self.workflow.executor_settings.tolerations
+        self.k8s_image_pull_policy = self.workflow.executor_settings.image_pull_policy
 
         self.logger.info(f"Using {self.container_image} for Kubernetes jobs.")
 
@@ -201,6 +209,10 @@ class Executor(RemoteExecutor):
         container.command = shlex.split("/bin/sh")
         container.args = ["-c", exec_job]
         container.working_dir = "/workdir"
+        
+        if self.k8s_image_pull_policy:
+            container.image_pull_policy = self.k8s_image_pull_policy
+        
         container.volume_mounts = [
             kubernetes.client.V1VolumeMount(name="workdir", mount_path="/workdir"),
         ]

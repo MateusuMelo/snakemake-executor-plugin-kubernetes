@@ -86,6 +86,22 @@ Format: `key=value:effect` for each toleration, separated by commas.
 
 Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
 
+---
+
+**PodSpec imagePullPolicy:**
+```yaml
+containers:
+- name: snakemake
+  imagePullPolicy: Always
+```
+
+**Plugin config:**
+```yaml
+kubernetes-image-pull-policy: Always
+```
+
+Valid policies: `Always`, `IfNotPresent`, `Never`
+
 ## Debugging Tips: 
 - Failing to schedule on the GPU node
   - Inspect your GPU node and validate your tolerations match the default ones defined above.   
