@@ -103,6 +103,20 @@ class ExecutorSettings(ExecutorSettingsBase):
             "automatic cleanups."
         },
     )
+    node_selector: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Node selector labels in format key1=value1,key2=value2. "
+            "E.g., nvidia.com/gpu.present=true"
+        },
+    )
+    tolerations: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Tolerations in format key1=value1:effect1,key2=value2:effect2. "
+            "E.g., nvidia.com/gpu=true:NoSchedule"
+        },
+    )
 
 
 # Required:
@@ -152,6 +166,8 @@ class Executor(RemoteExecutor):
         self.container_image = self.workflow.remote_execution_settings.container_image
         self.privileged = self.workflow.executor_settings.privileged
         self.persistent_volumes = self.workflow.executor_settings.persistent_volumes
+        self.k8s_node_selector = self.workflow.executor_settings.node_selector
+        self.k8s_tolerations = self.workflow.executor_settings.tolerations
 
         self.logger.info(f"Using {self.container_image} for Kubernetes jobs.")
 
@@ -202,6 +218,13 @@ class Executor(RemoteExecutor):
                 "machine_type"
             ]
             self.logger.debug(f"Set node selector for machine type: {node_selector}")
+
+        if self.k8s_node_selector:
+            for item in self.k8s_node_selector.split(","):
+                if "=" in item:
+                    key, value = item.split("=", 1)
+                    node_selector[key.strip()] = value.strip()
+            self.logger.debug(f"Added custom node selector: {node_selector}")
 
         # Initialize PodSpec
         pod_spec = kubernetes.client.V1PodSpec(
@@ -259,6 +282,24 @@ class Executor(RemoteExecutor):
                     f"Unsupported GPU manufacturer '{manufacturer}'. "
                     "Must be 'nvidia' or 'amd'."
                 )
+
+        if self.k8s_tolerations:
+            if pod_spec.tolerations is None:
+                pod_spec.tolerations = []
+            for item in self.k8s_tolerations.split(","):
+                if ":" in item:
+                    key_value, effect = item.rsplit(":", 1)
+                    if "=" in key_value:
+                        key, value = key_value.split("=", 1)
+                        pod_spec.tolerations.append(
+                            kubernetes.client.V1Toleration(
+                                key=key.strip(),
+                                operator="Equal",
+                                value=value.strip(),
+                                effect=effect.strip(),
+                            )
+                        )
+            self.logger.debug(f"Added custom tolerations: {pod_spec.tolerations}")
 
         # capabilities
         if (
