@@ -13,78 +13,6 @@ The GPU support in the plugin enables you to:
 
 With these changes, your job will be scheduled only on GPU-enabled nodes, and the GKE autoscaler will be able to provision GPU nodes as needed.
 
----
-
-## Custom Node Selector and Tolerations
-
-The plugin supports custom node selectors and tolerations via profile settings or command-line arguments. This allows targeting specific nodes and handling custom taints beyond the automatic GPU configuration.
-
-### Configuration
-
-**Node Selector Format:** `key1=value1,key2=value2`
-
-Example:
-```yaml
-kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.machine=A100
-```
-
-**Tolerations Format:** `key1=value1:effect1,key2=value2:effect2`
-
-Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
-
-Example:
-```yaml
-kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
-```
-
-### Example: NVIDIA GPU Cluster
-
-```yaml
-executor: kubernetes
-kubernetes-node-selector: nvidia.com/gpu.present=true
-kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
-```
-
-### Example: AMD GPU Cluster
-
-```yaml
-executor: kubernetes
-kubernetes-node-selector: amd.com/gpu.present=true
-kubernetes-tolerations: amd.com/gpu=true:NoSchedule
-```
-
-### Example: Multiple GPU Types
-
-```yaml
-executor: kubernetes
-kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.product=A100
-kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule
-```
-
-### Example: Custom Taints
-
-```yaml
-executor: kubernetes
-kubernetes-node-selector: nvidia.com/gpu.present=true
-kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule,nvidia.com/gpu=true:NoExecute
-```
-
-### Notes
-
-- Custom configurations are **additive** to automatic GPU settings
-- If not specified, the plugin behaves identically to the original version
-- Automatic GPU tolerations (via `gpu_manufacturer`) continue to work alongside custom settings
-
-### Verification
-
-To verify applied configurations:
-
-```bash
-kubectl get job <job-name> -n <namespace> -o json | \
-  jq '.spec.template.spec.nodeSelector, .spec.template.spec.tolerations'
-```
-
----
 
 ## Prerequisites
 
@@ -115,6 +43,48 @@ resources:
     - If `scale=1`(the default), we omit the limits entirely. This is how the plugin currently operates and will allow the pods to scale up as needed.
     - If `scale=0` we explicitly set the resource limits for each requested resource type.
 - You can define any of the other Snakemake resource types here as normal.
+
+## Custom Node Selector and Tolerations
+
+To convert from Kubernetes PodSpec to plugin configuration:
+
+**PodSpec nodeSelector:**
+```yaml
+nodeSelector:
+  nvidia.com/gpu.present: "true"
+  nvidia.com/gpu.machine: "A100"
+```
+
+**Plugin config:**
+```yaml
+kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.machine=A100
+```
+
+---
+
+**PodSpec tolerations:**
+```yaml
+tolerations:
+- key: "nvidia.com/gpu"
+  operator: "Equal"
+  value: "true"
+  effect: "NoSchedule"
+- key: "dedicated"
+  operator: "Equal"
+  value: "snakemake"
+  effect: "NoExecute"
+```
+
+**Plugin config:**
+```yaml
+kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule,dedicated=snakemake:NoExecute
+```
+
+---
+
+Format: `key=value:effect` for each toleration, separated by commas.
+
+Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
 
 ## Debugging Tips: 
 - Failing to schedule on the GPU node
