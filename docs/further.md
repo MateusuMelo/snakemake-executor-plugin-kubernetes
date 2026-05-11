@@ -13,7 +13,6 @@ The GPU support in the plugin enables you to:
 
 With these changes, your job will be scheduled only on GPU-enabled nodes, and the GKE autoscaler will be able to provision GPU nodes as needed.
 
----
 
 ## Prerequisites
 
@@ -44,6 +43,64 @@ resources:
     - If `scale=1`(the default), we omit the limits entirely. This is how the plugin currently operates and will allow the pods to scale up as needed.
     - If `scale=0` we explicitly set the resource limits for each requested resource type.
 - You can define any of the other Snakemake resource types here as normal.
+
+## Custom Node Selector and Tolerations
+
+To convert from Kubernetes PodSpec to plugin configuration:
+
+**PodSpec nodeSelector:**
+```yaml
+nodeSelector:
+  nvidia.com/gpu.present: "true"
+  nvidia.com/gpu.machine: "A100"
+```
+
+**Plugin config:**
+```yaml
+kubernetes-node-selector: nvidia.com/gpu.present=true,nvidia.com/gpu.machine=A100
+```
+
+---
+
+**PodSpec tolerations:**
+```yaml
+tolerations:
+- key: "nvidia.com/gpu"
+  operator: "Equal"
+  value: "true"
+  effect: "NoSchedule"
+- key: "dedicated"
+  operator: "Equal"
+  value: "snakemake"
+  effect: "NoExecute"
+```
+
+**Plugin config:**
+```yaml
+kubernetes-tolerations: nvidia.com/gpu=true:NoSchedule,dedicated=snakemake:NoExecute
+```
+
+---
+
+Format: `key=value:effect` for each toleration, separated by commas.
+
+Valid effects: `NoSchedule`, `PreferNoSchedule`, `NoExecute`
+
+---
+
+**PodSpec imagePullPolicy:**
+```yaml
+containers:
+- name: snakemake
+  imagePullPolicy: Always
+```
+
+**Plugin config:**
+```yaml
+kubernetes-image-pull-policy: Always
+```
+
+Valid policies: `Always`, `IfNotPresent`, `Never`
 
 ## Debugging Tips: 
 - Failing to schedule on the GPU node
